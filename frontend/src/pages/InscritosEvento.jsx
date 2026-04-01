@@ -20,7 +20,7 @@ export default function InscritosEvento({ user }) {
     }
   };
 
-  const verInscritos = async (evento) => {
+ /* const verInscritos = async (evento) => {
     setMsg("");
     setSelected(evento);
     setInscritos([]);
@@ -33,7 +33,29 @@ export default function InscritosEvento({ user }) {
       setMsg("❌ " + message);
       toastError(message);
     }
-  };
+  };*/
+
+  const verInscritos = async (evento) => {
+  setMsg("");
+  setSelected(evento);
+  setInscritos([]);
+
+  try {
+    const result = await get(`/inscripciones/evento/${evento.id}`);
+
+    // Asegurar que sea un array antes de usar filter
+    const lista = Array.isArray(result.data) ? result.data : [];
+
+    // Filtrar cancelados (robusto por si viene en minúsculas o null)
+    const activos = lista.filter(
+      (r) => r.estado && r.estado.toUpperCase() !== "CANCELADA"
+    );
+
+    setInscritos(activos);
+  } catch (err) {
+    setMsg("❌ " + (err.message ||"Error al obtener Inscripciones"));
+  }
+};
 
   useEffect(() => {
     if (user.rol === "ADMIN") cargarEventos();
