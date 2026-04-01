@@ -101,8 +101,45 @@ async function recursosDeEvento(req, res) {
     return res.status(500).json({ ok:false, msg:"Error listando recursos del evento", error: err.message });
   }
 }
+async function eliminarAsignacionRecursoEvento(req, res) {
+  try {
+    const asignacionId = Number(req.params.id);
+
+    if (!asignacionId) {
+      return res.status(400).json({
+        ok: false,
+        msg: "id de asignación requerido",
+      });
+    }
+
+    const [exists] = await pool.query(
+      "SELECT id FROM evento_recursos WHERE id=?",
+      [asignacionId]
+    );
+
+    if (exists.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        msg: "La asignación no existe",
+      });
+    }
+
+    await pool.query("DELETE FROM evento_recursos WHERE id=?", [asignacionId]);
+
+    return res.json({
+      ok: true,
+      msg: "Asignación eliminada correctamente",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      msg: "Error eliminando asignación de recurso",
+      error: err.message,
+    });
+  }
+}
 
 module.exports = {
   crearRecurso, listarRecursos, actualizarRecurso, eliminarRecurso,
-  asignarRecursoEvento, recursosDeEvento
+  asignarRecursoEvento, recursosDeEvento, eliminarAsignacionRecursoEvento
 };
