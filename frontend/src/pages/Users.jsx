@@ -25,6 +25,7 @@ export default function UsuariosAdmin() {
   const [form, setForm] = useState(initialForm);
   const [editando, setEditando] = useState(false);
   const [openModal, setOpenModal] = useState(false);
+  const [originalForm, setOriginalForm] = useState(initialForm);
 
   const resetForm = () => {
     setForm(initialForm);
@@ -60,7 +61,7 @@ export default function UsuariosAdmin() {
       setLoading(true);
       setError("");
 
-      const result = await get("/users");
+      const result = await get("/Users");
       setUsuarios(result.data || []);
     } catch (err) {
       console.error(err);
