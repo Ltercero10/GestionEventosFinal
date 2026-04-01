@@ -1,23 +1,21 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { get, post } from "../api";
 import { formatFecha } from "../utils/dateformat";
-
 
 export default function Eventos({ user }) {
   const [eventos, setEventos] = useState([]);
   const [msg, setMsg] = useState("");
 
-  // 👇 recursos por evento (cache) y cuál está abierto
   const [recursosPorEvento, setRecursosPorEvento] = useState({});
   const [openEventoId, setOpenEventoId] = useState(null);
 
   const cargar = async () => {
     setMsg("");
     try {
-      const { data } = await api.get("/eventos");
-      setEventos(data.data || []);
+      const result = await get("/eventos");
+      setEventos(result.data || []);
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Error al cargar eventos"));
     }
   };
 
@@ -28,18 +26,17 @@ export default function Eventos({ user }) {
   const inscribirme = async (eventoId) => {
     setMsg("");
     try {
-      const { data } = await api.post(`/inscripciones/${eventoId}`);
-      setMsg("✅ " + data.msg);
+      const result = await post(`/inscripciones/${eventoId}`);
+      setMsg("✅ " + result.msg);
       await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Error al inscribirse"));
     }
   };
 
   const toggleRecursos = async (eventoId) => {
     setMsg("");
 
-    // si ya está abierto, cerrar
     if (openEventoId === eventoId) {
       setOpenEventoId(null);
       return;
@@ -47,17 +44,16 @@ export default function Eventos({ user }) {
 
     setOpenEventoId(eventoId);
 
-    // si ya lo tenemos cacheado, no pedir otra vez
     if (recursosPorEvento[eventoId]) return;
 
     try {
-      const { data } = await api.get(`/recursos/evento/${eventoId}`);
+      const result = await get(`/recursos/evento/${eventoId}`);
       setRecursosPorEvento((prev) => ({
         ...prev,
-        [eventoId]: data.data || [],
+        [eventoId]: result.data || [],
       }));
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Error al cargar recursos"));
     }
   };
 
@@ -97,14 +93,12 @@ export default function Eventos({ user }) {
               {e.cupo_disponible ?? (e.cupo === 0 ? "Ilimitado" : "-")}
             </p>
 
-            {/* CLIENTE: Inscribirse */}
             {user.rol === "CLIENTE" && (
               <button onClick={() => inscribirme(e.id)} style={{ padding: 8, marginTop: 6 }}>
                 Inscribirme
               </button>
             )}
 
-            {/* Ver recursos (ADMIN y CLIENTE) */}
             <button
               type="button"
               className="btn-secondary"
@@ -114,7 +108,6 @@ export default function Eventos({ user }) {
               {openEventoId === e.id ? "Ocultar recursos" : "Ver recursos"}
             </button>
 
-            {/* Lista recursos */}
             {openEventoId === e.id && (
               <div style={{ marginTop: 10 }}>
                 <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>

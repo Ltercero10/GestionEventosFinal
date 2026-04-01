@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { api, setAuthToken } from "../api";
+import { post, setAuthToken } from "../api";
 
 export default function Login({ onLogin }) {
-  const [mode, setMode] = useState("login"); // login | register
+  const [mode, setMode] = useState("login");
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,13 +15,13 @@ export default function Login({ onLogin }) {
   const doLogin = async () => {
     const cleanEmail = email.trim().toLowerCase();
 
-    const { data } = await api.post("/auth/login", {
+    const result = await post("/auth/login", {
       email: cleanEmail,
       password,
     });
 
-    const token = data.token;
-    const user = data.user;
+    const token = result.token;
+    const user = result.user;
 
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
@@ -33,7 +33,7 @@ export default function Login({ onLogin }) {
     const cleanNombre = nombre.trim();
     const cleanEmail = email.trim().toLowerCase();
 
-    await api.post("/auth/register", {
+    await post("/auth/register", {
       nombre: cleanNombre,
       email: cleanEmail,
       password,
@@ -90,7 +90,7 @@ export default function Login({ onLogin }) {
         await doLogin();
       }
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Ocurrió un error"));
       setLoading(false);
     }
   };
@@ -298,9 +298,7 @@ export default function Login({ onLogin }) {
                   fontSize: 12,
                   color: "rgba(11,18,32,.60)",
                 }}
-              >
-                
-              </div>
+              ></div>
             </div>
           </div>
         </div>

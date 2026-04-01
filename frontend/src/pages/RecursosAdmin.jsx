@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { get, post, put, del } from "../api";
 
 export default function RecursosAdmin({ user }) {
   const [recursos, setRecursos] = useState([]);
@@ -12,14 +12,15 @@ export default function RecursosAdmin({ user }) {
   const [editandoId, setEditandoId] = useState(null);
 
   const cargar = async () => {
+    setMsg("");
     try {
-      const r = await api.get("/recursos");
-      setRecursos(r.data.data || []);
+      const r = await get("/recursos");
+      setRecursos(r.data || []);
 
-      const e = await api.get("/eventos");
-      setEventos(e.data.data || []);
+      const e = await get("/eventos");
+      setEventos(e.data || []);
     } catch (err) {
-      setMsg("❌ " + err.message);
+      setMsg("❌ " + (err.message || "Error al cargar datos"));
     }
   };
 
@@ -28,67 +29,65 @@ export default function RecursosAdmin({ user }) {
   }, []);
 
   const crearRecurso = async () => {
+    if (!nombre.trim() || !tipo.trim()) {
+      setMsg("❌ Nombre y tipo son obligatorios");
+      return;
+    }
+
     try {
-
       if (editandoId) {
-        const { data } = await api.put(`/recursos/${editandoId}`, {
+        const result = await put(`/recursos/${editandoId}`, {
           nombre,
           tipo,
         });
 
-        setMsg("✅ " + data.msg);
+        setMsg("✅ " + result.msg);
         setEditandoId(null);
-
       } else {
-
-        const { data } = await api.post("/recursos", {
+        const result = await post("/recursos", {
           nombre,
           tipo,
         });
 
-        setMsg("✅ " + data.msg);
+        setMsg("✅ " + result.msg);
       }
 
       setNombre("");
       setTipo("");
-      cargar();
-
+      await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Error"));
     }
   };
 
   const asignar = async () => {
+    if (!eventoId || !recursoId) {
+      setMsg("❌ Debes seleccionar evento y recurso");
+      return;
+    }
+
     try {
-      const { data } = await api.post(`/recursos/evento/${eventoId}`, {
+      const result = await post(`/recursos/evento/${eventoId}`, {
         recurso_id: recursoId,
         cantidad: 1,
       });
 
-      setMsg("✅ " + data.msg);
-
+      setMsg("✅ " + result.msg);
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Error"));
     }
   };
 
   const eliminarRecurso = async (id) => {
-
     const ok = confirm("¿Eliminar este recurso?");
     if (!ok) return;
 
     try {
-
-      const { data } = await api.delete(`/recursos/${id}`);
-
-      setMsg("✅ " + data.msg);
-
-      cargar();
-
+      const result = await del(`/recursos/${id}`);
+      setMsg("✅ " + result.msg);
+      await cargar();
     } catch (err) {
-
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
-
+      setMsg("❌ " + (err.message || "Error"));
     }
   };
 
@@ -106,9 +105,8 @@ export default function RecursosAdmin({ user }) {
 
       {msg && <p>{msg}</p>}
 
-      {/* Crear */}
       <div style={{ border: "1px solid #444", padding: 12, borderRadius: 12 }}>
-        <h4>Crear recurso</h4>
+        <h4>{editandoId ? "Editar recurso" : "Crear recurso"}</h4>
 
         <input
           placeholder="Nombre"
@@ -117,10 +115,7 @@ export default function RecursosAdmin({ user }) {
           style={{ padding: 8, marginRight: 8 }}
         />
 
-        <select
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value)}
-        >
+        <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
           <option value="">Seleccionar tipo</option>
           <option value="Multimedia">Multimedia</option>
           <option value="Infraestructura">Infraestructura</option>
@@ -134,22 +129,32 @@ export default function RecursosAdmin({ user }) {
         </button>
       </div>
 
-      {/* Asignar */}
-      <div style={{ border: "1px solid #444", padding: 12, borderRadius: 12, marginTop: 12 }}>
+      <div
+        style={{
+          border: "1px solid #444",
+          padding: 12,
+          borderRadius: 12,
+          marginTop: 12,
+        }}
+      >
         <h4>Asignar recurso a evento</h4>
 
-        <select onChange={(e) => setEventoId(e.target.value)}>
-          <option>Evento</option>
-          {eventos.map(e => (
+        <select value={eventoId} onChange={(e) => setEventoId(e.target.value)}>
+          <option value="">Evento</option>
+          {eventos.map((e) => (
             <option key={e.id} value={e.id}>
               {e.titulo}
             </option>
           ))}
         </select>
 
-        <select onChange={(e) => setRecursoId(e.target.value)} style={{ marginLeft: 8 }}>
-          <option>Recurso</option>
-          {recursos.map(r => (
+        <select
+          value={recursoId}
+          onChange={(e) => setRecursoId(e.target.value)}
+          style={{ marginLeft: 8 }}
+        >
+          <option value="">Recurso</option>
+          {recursos.map((r) => (
             <option key={r.id} value={r.id}>
               {r.nombre}
             </option>
@@ -161,11 +166,10 @@ export default function RecursosAdmin({ user }) {
         </button>
       </div>
 
-      {/* Lista */}
       <div style={{ marginTop: 12 }}>
         <h4>Recursos existentes</h4>
 
-        {recursos.map(r => (
+        {recursos.map((r) => (
           <div
             key={r.id}
             style={{
@@ -175,7 +179,7 @@ export default function RecursosAdmin({ user }) {
               padding: 8,
               border: "1px solid #555",
               borderRadius: 8,
-              marginBottom: 6
+              marginBottom: 6,
             }}
           >
             <span>
@@ -183,9 +187,7 @@ export default function RecursosAdmin({ user }) {
             </span>
 
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => editarRecurso(r)}>
-                Editar
-              </button>
+              <button onClick={() => editarRecurso(r)}>Editar</button>
 
               <button
                 onClick={() => eliminarRecurso(r.id)}
@@ -194,11 +196,9 @@ export default function RecursosAdmin({ user }) {
                 Eliminar
               </button>
             </div>
-
           </div>
         ))}
       </div>
-
     </div>
   );
 }

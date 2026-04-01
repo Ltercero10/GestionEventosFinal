@@ -6,6 +6,8 @@ const eventosRoutes = require("./routes/eventos.routes");
 const inscripcionesRoutes = require("./routes/inscripciones.routes");
 const adminRoutes = require("./routes/admin.routes");
 const recursosRoutes = require("./routes/recursos.routes");
+const userRoutes = require("./routes/user.routes");
+
 
 
 
@@ -21,6 +23,8 @@ app.use("/api/eventos", eventosRoutes);
 app.use("/api/inscripciones", inscripcionesRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/recursos", recursosRoutes);
+app.use("/api/users", userRoutes);
+
 
 
 

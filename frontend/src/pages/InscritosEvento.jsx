@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { get } from "../api";
 
 export default function InscritosEvento({ user }) {
   const [eventos, setEventos] = useState([]);
@@ -10,10 +10,10 @@ export default function InscritosEvento({ user }) {
   const cargarEventos = async () => {
     setMsg("");
     try {
-      const { data } = await api.get("/eventos");
-      setEventos(data.data || []);
+      const result  = await get("/eventos");
+      setEventos(result.data || []);
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Error al obtener datos"));
     }
   };
 
@@ -22,10 +22,10 @@ export default function InscritosEvento({ user }) {
     setSelected(evento);
     setInscritos([]);
     try {
-      const { data } = await api.get(`/inscripciones/evento/${evento.id}`);
-      setInscritos(data.data || []);
+      const result = await get(`/inscripciones/evento/${evento.id}`);
+      setInscritos(result.data || []);
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message|| "Error al obtener inscripciones"));
     }
   };
 

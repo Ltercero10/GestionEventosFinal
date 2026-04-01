@@ -5,9 +5,11 @@ import MisInscripciones from "./pages/MisInscripciones";
 import InscritosEvento from "./pages/InscritosEvento";
 import AdminEventos from "./pages/AdminEventos";
 import RecursosAdmin from "./pages/RecursosAdmin";
+import UsuariosAdmin from "./pages/Users";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { setAuthToken } from "./api";
+import "./App.css";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -21,7 +23,7 @@ export default function App() {
       setAuthToken(token);
       const u = JSON.parse(savedUser);
       setUser(u);
-      setView("eventos"); // vista inicial
+      setView("eventos");
     }
   }, []);
 
@@ -70,6 +72,12 @@ export default function App() {
           {view === "recursos" && user.rol === "ADMIN" && (
             <div className="card">
               <RecursosAdmin user={user} />
+            </div>
+          )}
+
+          {view === "usuarios" && user.rol === "ADMIN" && (
+            <div className="card">
+              <UsuariosAdmin user={user} />
             </div>
           )}
         </div>

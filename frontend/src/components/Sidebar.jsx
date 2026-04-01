@@ -11,6 +11,7 @@ export default function Sidebar({ user, view, setView }) {
     { key: "inscritos", label: "👥 Inscritos por evento" },
     { key: "admin_eventos", label: "🛠️ Panel eventos" },
     { key: "recursos", label: "🧩 Recursos" },
+    { key: "usuarios", label: "👤 Usuarios" },
   ];
 
   const items =

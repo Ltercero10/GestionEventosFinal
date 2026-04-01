@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { get, del } from "../api";
 
 export default function MisInscripciones({ user }) {
   const [items, setItems] = useState([]);
@@ -8,10 +8,10 @@ export default function MisInscripciones({ user }) {
   const cargar = async () => {
     setMsg("");
     try {
-      const { data } = await api.get("/inscripciones/mis-inscripciones");
-      setItems(data.data || []);
+      const result = await get("/inscripciones/mis-inscripciones");
+      setItems(result.data || []);
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Error al cargar inscripciones"));
     }
   };
 
@@ -22,11 +22,11 @@ export default function MisInscripciones({ user }) {
   const cancelar = async (eventoId) => {
     setMsg("");
     try {
-      const { data } = await api.delete(`/inscripciones/${eventoId}`);
-      setMsg("✅ " + data.msg);
+      const result = await del(`/inscripciones/${eventoId}`);
+      setMsg("✅ " + result.msg);
       await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.response?.data?.msg || err.message));
+      setMsg("❌ " + (err.message || "Error al cancelar inscripción"));
     }
   };
 
