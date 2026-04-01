@@ -19,22 +19,6 @@ export default function InscritosEvento({ user }) {
       toastError(message);
     }
   };
-
- /* const verInscritos = async (evento) => {
-    setMsg("");
-    setSelected(evento);
-    setInscritos([]);
-
-    try {
-      const result = await get(`/inscripciones/evento/${evento.id}`);
-      setInscritos(result.data || []);
-    } catch (err) {
-      const message = err.message || "Error al obtener inscripciones";
-      setMsg("❌ " + message);
-      toastError(message);
-    }
-  };*/
-
   const verInscritos = async (evento) => {
   setMsg("");
   setSelected(evento);
