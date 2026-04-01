@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { get, post, put, del } from "../api";
+import {
+  toastSuccess,
+  toastError,
+  confirmDialog,
+  confirmDelete,
+} from "../utils/alerts";
 
 export default function RecursosAdmin({ user }) {
   const [recursos, setRecursos] = useState([]);
@@ -20,7 +26,9 @@ export default function RecursosAdmin({ user }) {
       const e = await get("/eventos");
       setEventos(e.data || []);
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error al cargar datos"));
+      const message = err.message || "Error al cargar datos";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
@@ -30,9 +38,23 @@ export default function RecursosAdmin({ user }) {
 
   const crearRecurso = async () => {
     if (!nombre.trim() || !tipo.trim()) {
-      setMsg("❌ Nombre y tipo son obligatorios");
+      const message = "Nombre y tipo son obligatorios";
+      setMsg("❌ " + message);
+      toastError(message);
       return;
     }
+
+    const resultConfirm = await confirmDialog({
+      title: editandoId ? "¿Actualizar recurso?" : "¿Crear recurso?",
+      text: editandoId
+        ? `Se actualizará el recurso "${nombre}".`
+        : `Se creará el recurso "${nombre}".`,
+      icon: "question",
+      confirmButtonText: editandoId ? "Sí, actualizar" : "Sí, crear",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!resultConfirm.isConfirmed) return;
 
     try {
       if (editandoId) {
@@ -42,6 +64,7 @@ export default function RecursosAdmin({ user }) {
         });
 
         setMsg("✅ " + result.msg);
+        toastSuccess(result.msg || "Recurso actualizado correctamente");
         setEditandoId(null);
       } else {
         const result = await post("/recursos", {
@@ -50,21 +73,41 @@ export default function RecursosAdmin({ user }) {
         });
 
         setMsg("✅ " + result.msg);
+        toastSuccess(result.msg || "Recurso creado correctamente");
       }
 
       setNombre("");
       setTipo("");
       await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error"));
+      const message = err.message || "Error al guardar recurso";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
   const asignar = async () => {
     if (!eventoId || !recursoId) {
-      setMsg("❌ Debes seleccionar evento y recurso");
+      const message = "Debes seleccionar evento y recurso";
+      setMsg("❌ " + message);
+      toastError(message);
       return;
     }
+
+    const eventoSeleccionado = eventos.find((e) => String(e.id) === String(eventoId));
+    const recursoSeleccionado = recursos.find((r) => String(r.id) === String(recursoId));
+
+    const resultConfirm = await confirmDialog({
+      title: "¿Asignar recurso?",
+      text: `Se asignará "${
+        recursoSeleccionado?.nombre || "el recurso"
+      }" al evento "${eventoSeleccionado?.titulo || "seleccionado"}".`,
+      icon: "question",
+      confirmButtonText: "Sí, asignar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!resultConfirm.isConfirmed) return;
 
     try {
       const result = await post(`/recursos/evento/${eventoId}`, {
@@ -73,21 +116,29 @@ export default function RecursosAdmin({ user }) {
       });
 
       setMsg("✅ " + result.msg);
+      toastSuccess(result.msg || "Recurso asignado correctamente");
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error"));
+      const message = err.message || "Error al asignar recurso";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
-  const eliminarRecurso = async (id) => {
-    const ok = confirm("¿Eliminar este recurso?");
-    if (!ok) return;
+  const eliminarRecurso = async (id, nombreRecurso) => {
+    const resultConfirm = await confirmDelete(
+      `Se eliminará el recurso "${nombreRecurso}".`
+    );
+    if (!resultConfirm.isConfirmed) return;
 
     try {
       const result = await del(`/recursos/${id}`);
       setMsg("✅ " + result.msg);
+      toastSuccess(result.msg || "Recurso eliminado correctamente");
       await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error"));
+      const message = err.message || "Error al eliminar recurso";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
@@ -95,6 +146,7 @@ export default function RecursosAdmin({ user }) {
     setNombre(recurso.nombre);
     setTipo(recurso.tipo);
     setEditandoId(recurso.id);
+    setMsg(`✏️ Editando recurso: ${recurso.nombre}`);
   };
 
   if (user.rol !== "ADMIN") return null;
@@ -190,7 +242,7 @@ export default function RecursosAdmin({ user }) {
               <button onClick={() => editarRecurso(r)}>Editar</button>
 
               <button
-                onClick={() => eliminarRecurso(r.id)}
+                onClick={() => eliminarRecurso(r.id, r.nombre)}
                 style={{ background: "#ff4d4f", color: "white" }}
               >
                 Eliminar

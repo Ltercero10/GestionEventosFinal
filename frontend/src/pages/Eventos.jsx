@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { get, post } from "../api";
 import { formatFecha } from "../utils/dateformat";
+import { toastSuccess, toastError, confirmDialog } from "../utils/alerts";
 
 export default function Eventos({ user }) {
   const [eventos, setEventos] = useState([]);
@@ -16,6 +17,7 @@ export default function Eventos({ user }) {
       setEventos(result.data || []);
     } catch (err) {
       setMsg("❌ " + (err.message || "Error al cargar eventos"));
+      toastError(err.message || "Error al cargar eventos");
     }
   };
 
@@ -23,14 +25,27 @@ export default function Eventos({ user }) {
     cargar();
   }, []);
 
-  const inscribirme = async (eventoId) => {
+  const inscribirme = async (eventoId, titulo) => {
     setMsg("");
+
+    const resultConfirm = await confirmDialog({
+      title: "¿Inscribirte al evento?",
+      text: `Te inscribirás en "${titulo}".`,
+      icon: "question",
+      confirmButtonText: "Sí, inscribirme",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!resultConfirm.isConfirmed) return;
+
     try {
       const result = await post(`/inscripciones/${eventoId}`);
       setMsg("✅ " + result.msg);
+      toastSuccess(result.msg || "Inscripción realizada correctamente");
       await cargar();
     } catch (err) {
       setMsg("❌ " + (err.message || "Error al inscribirse"));
+      toastError(err.message || "Error al inscribirse");
     }
   };
 
@@ -54,6 +69,7 @@ export default function Eventos({ user }) {
       }));
     } catch (err) {
       setMsg("❌ " + (err.message || "Error al cargar recursos"));
+      toastError(err.message || "Error al cargar recursos");
     }
   };
 
@@ -94,7 +110,10 @@ export default function Eventos({ user }) {
             </p>
 
             {user.rol === "CLIENTE" && (
-              <button onClick={() => inscribirme(e.id)} style={{ padding: 8, marginTop: 6 }}>
+              <button
+                onClick={() => inscribirme(e.id, e.titulo)}
+                style={{ padding: 8, marginTop: 6 }}
+              >
                 Inscribirme
               </button>
             )}

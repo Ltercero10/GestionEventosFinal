@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { get } from "../api";
+import { toastError } from "../utils/alerts";
 
 export default function InscritosEvento({ user }) {
   const [eventos, setEventos] = useState([]);
@@ -10,10 +11,12 @@ export default function InscritosEvento({ user }) {
   const cargarEventos = async () => {
     setMsg("");
     try {
-      const result  = await get("/eventos");
+      const result = await get("/eventos");
       setEventos(result.data || []);
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error al obtener datos"));
+      const message = err.message || "Error al obtener datos";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
@@ -21,11 +24,14 @@ export default function InscritosEvento({ user }) {
     setMsg("");
     setSelected(evento);
     setInscritos([]);
+
     try {
       const result = await get(`/inscripciones/evento/${evento.id}`);
       setInscritos(result.data || []);
     } catch (err) {
-      setMsg("❌ " + (err.message|| "Error al obtener inscripciones"));
+      const message = err.message || "Error al obtener inscripciones";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
@@ -37,7 +43,7 @@ export default function InscritosEvento({ user }) {
 
   return (
     <div style={{ marginTop: 20 }}>
-      <h3>Inscritos por Evento </h3>
+      <h3>Inscritos por Evento</h3>
 
       <button onClick={cargarEventos} style={{ padding: 8, marginBottom: 10 }}>
         Recargar eventos
@@ -46,7 +52,6 @@ export default function InscritosEvento({ user }) {
       {msg && <p>{msg}</p>}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {/* Lista de eventos */}
         <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}>
           <h4 style={{ marginTop: 0 }}>Eventos</h4>
 
@@ -58,8 +63,8 @@ export default function InscritosEvento({ user }) {
                 <button
                   key={e.id}
                   onClick={() => verInscritos(e)}
-                  onMouseEnter={(e)=> e.currentTarget.style.background="#2a2a2a"}
-                  onMouseLeave={(e)=> e.currentTarget.style.background="#1e1e1e"}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#2a2a2a")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#1e1e1e")}
                   style={{
                     textAlign: "left",
                     padding: 12,
@@ -68,7 +73,7 @@ export default function InscritosEvento({ user }) {
                     background: "#1e1e1e",
                     color: "#fff",
                     cursor: "pointer",
-                    transition: "0.2s"
+                    transition: "0.2s",
                   }}
                 >
                   <b>{e.titulo}</b>
@@ -84,7 +89,6 @@ export default function InscritosEvento({ user }) {
           )}
         </div>
 
-        {/* Inscritos del evento seleccionado */}
         <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}>
           <h4 style={{ marginTop: 0 }}>
             {selected ? `Inscritos: ${selected.titulo}` : "Seleccioná un evento"}
@@ -97,7 +101,10 @@ export default function InscritosEvento({ user }) {
           {inscritos.length > 0 && (
             <div style={{ display: "grid", gap: 8 }}>
               {inscritos.map((r) => (
-                <div key={r.id} style={{ padding: 10, border: "1px solid #eee", borderRadius: 10 }}>
+                <div
+                  key={r.id}
+                  style={{ padding: 10, border: "1px solid #eee", borderRadius: 10 }}
+                >
                   <b>{r.nombre}</b>
                   <div style={{ fontSize: 13 }}>{r.email}</div>
                   <div style={{ fontSize: 13 }}>

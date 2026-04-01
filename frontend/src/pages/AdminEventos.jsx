@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
 import { get, post, put, del } from "../api";
+import {
+  toastSuccess,
+  toastError,
+  confirmSave,
+  confirmDelete,
+  confirmDialog,
+} from "../utils/alerts";
 
 // Año actual para validaciones de fecha
 const currentYear = new Date().getFullYear();
@@ -56,7 +63,9 @@ export default function AdminRecursosEventos({ user }) {
       const r = await get("/recursos");
       setRecursos(r.data || []);
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error al cargar datos"));
+      const message = err.message || "Error al cargar datos";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
@@ -80,63 +89,89 @@ export default function AdminRecursosEventos({ user }) {
   const submitEvento = async (e) => {
     e.preventDefault();
     setMsg("");
+
+    const payload = {
+      titulo: form.titulo,
+      descripcion: form.descripcion,
+      ubicacion: form.ubicacion,
+      fecha_inicio: toMySQL(form.fecha_inicio),
+      fecha_fin: toMySQL(form.fecha_fin),
+      cupo: Number(form.cupo || 0),
+      estado: form.estado,
+    };
+
+    if (!payload.titulo || !payload.fecha_inicio || !payload.fecha_fin) {
+      const message = "Título, fecha_inicio y fecha_fin son requeridos";
+      setMsg("❌ " + message);
+      toastError(message);
+      return;
+    }
+
+    if (new Date(form.fecha_inicio).getFullYear() < currentYear) {
+      const message = `La fecha inicio no puede ser menor al año ${currentYear}`;
+      setMsg("❌ " + message);
+      toastError(message);
+      return;
+    }
+
+    if (new Date(form.fecha_fin).getFullYear() < currentYear) {
+      const message = `La fecha fin no puede ser menor al año ${currentYear}`;
+      setMsg("❌ " + message);
+      toastError(message);
+      return;
+    }
+
+    if (new Date(form.fecha_fin) <= new Date(form.fecha_inicio)) {
+      const message = "La fecha fin debe ser mayor que la fecha inicio";
+      setMsg("❌ " + message);
+      toastError(message);
+      return;
+    }
+
+    if (Number(form.cupo) < 5) {
+      const message = "El cupo no puede ser menor a 5";
+      setMsg("❌ " + message);
+      toastError(message);
+      return;
+    }
+
+    const resultConfirm = await confirmSave(!!form.id);
+    if (!resultConfirm.isConfirmed) return;
+
     try {
-      const payload = {
-        titulo: form.titulo,
-        descripcion: form.descripcion,
-        ubicacion: form.ubicacion,
-        fecha_inicio: toMySQL(form.fecha_inicio),
-        fecha_fin: toMySQL(form.fecha_fin),
-        cupo: Number(form.cupo || 0),
-        estado: form.estado,
-      };
-
-      if (!payload.titulo || !payload.fecha_inicio || !payload.fecha_fin) {
-        return setMsg("❌ titulo, fecha_inicio y fecha_fin son requeridos");
-      }
-
-      if (new Date(form.fecha_inicio).getFullYear() < currentYear) {
-        return setMsg(`❌ La fecha inicio no puede ser menor al año ${currentYear}`);
-      }
-
-      if (new Date(form.fecha_fin).getFullYear() < currentYear) {
-        return setMsg(`❌ La fecha fin no puede ser menor al año ${currentYear}`);
-      }
-
-      if (new Date(form.fecha_fin) <= new Date(form.fecha_inicio)) {
-        return setMsg("❌ La fecha fin debe ser mayor que la fecha inicio");
-      }
-
-      if (Number(form.cupo) < 5) {
-        return setMsg("❌ El cupo no puede ser menor a 5");
-      }
-
       if (form.id) {
         const result = await put(`/eventos/${form.id}`, payload);
         setMsg("✅ " + result.msg);
+        toastSuccess(result.msg || "Evento actualizado correctamente");
       } else {
         const result = await post("/eventos", payload);
         setMsg("✅ " + result.msg);
+        toastSuccess(result.msg || "Evento creado correctamente");
       }
 
       limpiar();
       await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error al guardar evento"));
+      const message = err.message || "Error al guardar evento";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
-  const eliminarEvento = async (id) => {
-    const ok = confirm("¿Eliminar este evento?");
-    if (!ok) return;
+  const eliminarEvento = async (id, titulo) => {
+    const resultConfirm = await confirmDelete(`Se eliminará el evento "${titulo}".`);
+    if (!resultConfirm.isConfirmed) return;
 
     setMsg("");
     try {
       const result = await del(`/eventos/${id}`);
       setMsg("✅ " + result.msg);
+      toastSuccess(result.msg || "Evento eliminado correctamente");
       await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error al eliminar evento"));
+      const message = err.message || "Error al eliminar evento";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
@@ -155,21 +190,44 @@ export default function AdminRecursosEventos({ user }) {
   };
 
   const crearRecurso = async () => {
+    if (!nombre.trim() || !tipo.trim()) {
+      const message = "Nombre y tipo son requeridos para el recurso";
+      setMsg("❌ " + message);
+      toastError(message);
+      return;
+    }
+
+    const resultConfirm = await confirmDialog({
+      title: editandoId ? "¿Actualizar recurso?" : "¿Crear recurso?",
+      text: editandoId
+        ? `Se actualizará el recurso "${nombre}".`
+        : `Se creará el recurso "${nombre}".`,
+      icon: "question",
+      confirmButtonText: editandoId ? "Sí, actualizar" : "Sí, crear",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!resultConfirm.isConfirmed) return;
+
     try {
       if (editandoId) {
         const result = await put(`/recursos/${editandoId}`, { nombre, tipo });
         setMsg("✅ " + result.msg);
+        toastSuccess(result.msg || "Recurso actualizado correctamente");
         setEditandoId(null);
       } else {
         const result = await post("/recursos", { nombre, tipo });
         setMsg("✅ " + result.msg);
+        toastSuccess(result.msg || "Recurso creado correctamente");
       }
 
       setNombre("");
       setTipo("");
       await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error al guardar recurso"));
+      const message = err.message || "Error al guardar recurso";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
@@ -177,30 +235,61 @@ export default function AdminRecursosEventos({ user }) {
     setNombre(r.nombre);
     setTipo(r.tipo);
     setEditandoId(r.id);
+    setMsg(`✏️ Editando recurso: ${r.nombre}`);
   };
 
-  const eliminarRecurso = async (id) => {
-    const ok = confirm("¿Eliminar este recurso?");
-    if (!ok) return;
+  const eliminarRecurso = async (id, nombreRecurso) => {
+    const resultConfirm = await confirmDelete(
+      `Se eliminará el recurso "${nombreRecurso}".`
+    );
+    if (!resultConfirm.isConfirmed) return;
 
     try {
       const result = await del(`/recursos/${id}`);
       setMsg("✅ " + result.msg);
+      toastSuccess(result.msg || "Recurso eliminado correctamente");
       await cargar();
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error al eliminar recurso"));
+      const message = err.message || "Error al eliminar recurso";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
   const asignarRecurso = async () => {
+    if (!eventoId || !recursoId) {
+      const message = "Debes seleccionar un evento y un recurso";
+      setMsg("❌ " + message);
+      toastError(message);
+      return;
+    }
+
+    const eventoSeleccionado = eventos.find((e) => String(e.id) === String(eventoId));
+    const recursoSeleccionado = recursos.find((r) => String(r.id) === String(recursoId));
+
+    const resultConfirm = await confirmDialog({
+      title: "¿Asignar recurso al evento?",
+      text: `Se asignará "${
+        recursoSeleccionado?.nombre || "el recurso"
+      }" al evento "${eventoSeleccionado?.titulo || "seleccionado"}".`,
+      icon: "question",
+      confirmButtonText: "Sí, asignar",
+      cancelButtonText: "Cancelar",
+    });
+
+    if (!resultConfirm.isConfirmed) return;
+
     try {
       const result = await post(`/recursos/evento/${eventoId}`, {
         recurso_id: recursoId,
         cantidad: 1,
       });
       setMsg("✅ " + result.msg);
+      toastSuccess(result.msg || "Recurso asignado correctamente");
     } catch (err) {
-      setMsg("❌ " + (err.message || "Error al asignar recurso"));
+      const message = err.message || "Error al asignar recurso";
+      setMsg("❌ " + message);
+      toastError(message);
     }
   };
 
@@ -312,7 +401,7 @@ export default function AdminRecursosEventos({ user }) {
                     Editar
                   </button>
                   <button
-                    onClick={() => eliminarEvento(e.id)}
+                    onClick={() => eliminarEvento(e.id, e.titulo)}
                     style={{ flex: 1, background: "#ff4d4f", color: "white" }}
                   >
                     Eliminar
@@ -367,7 +456,7 @@ export default function AdminRecursosEventos({ user }) {
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={() => editarRecurso(r)}>Editar</button>
               <button
-                onClick={() => eliminarRecurso(r.id)}
+                onClick={() => eliminarRecurso(r.id, r.nombre)}
                 style={{ background: "#ff4d4f", color: "white" }}
               >
                 Eliminar
@@ -378,7 +467,11 @@ export default function AdminRecursosEventos({ user }) {
 
         <h4 style={{ marginTop: 20 }}>Asignar recurso a evento</h4>
 
-        <select onChange={(e) => setEventoId(e.target.value)} style={{ marginRight: 8 }}>
+        <select
+          value={eventoId}
+          onChange={(e) => setEventoId(e.target.value)}
+          style={{ marginRight: 8 }}
+        >
           <option value="">Seleccionar evento</option>
           {eventos.map((e) => (
             <option key={e.id} value={e.id}>
@@ -387,7 +480,7 @@ export default function AdminRecursosEventos({ user }) {
           ))}
         </select>
 
-        <select onChange={(e) => setRecursoId(e.target.value)}>
+        <select value={recursoId} onChange={(e) => setRecursoId(e.target.value)}>
           <option value="">Seleccionar recurso</option>
           {recursos.map((r) => (
             <option key={r.id} value={r.id}>
