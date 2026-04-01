@@ -11,10 +11,16 @@ async function inscribir(req, res) {
       "SELECT id, cupo, estado FROM eventos WHERE id=?",
       [eventoId]
     );
-    if (evRows.length === 0) return res.status(404).json({ ok: false, msg: "Evento no existe" });
+
+    if (evRows.length === 0) {
+      return res.status(404).json({ ok: false, msg: "Evento no existe" });
+    }
 
     const evento = evRows[0];
-    if (evento.estado !== "ACTIVO") return res.status(400).json({ ok: false, msg: "Evento no está activo" });
+
+    if (evento.estado !== "ACTIVO") {
+      return res.status(400).json({ ok: false, msg: "Evento no está activo" });
+    }
 
     // 2) Verificar si ya existe inscripción
     const [insRows] = await pool.query(
@@ -23,13 +29,13 @@ async function inscribir(req, res) {
     );
 
     if (insRows.length > 0) {
-      // Si estaba cancelada, la reactivamos
+      // Reactivar si estaba cancelada
       if (insRows[0].estado === "CANCELADA") {
-        // Antes de reactivar revisa cupo
         const [[{ usados }]] = await pool.query(
           "SELECT COUNT(*) AS usados FROM inscripciones WHERE evento_id=? AND estado='ACTIVA'",
           [eventoId]
         );
+
         if (usados >= evento.cupo) {
           return res.status(400).json({ ok: false, msg: "Cupo lleno" });
         }
@@ -38,13 +44,14 @@ async function inscribir(req, res) {
           "UPDATE inscripciones SET estado='ACTIVA' WHERE id=?",
           [insRows[0].id]
         );
+
         return res.json({ ok: true, msg: "Inscripción reactivada" });
       }
 
       return res.status(409).json({ ok: false, msg: "Ya estás inscrito en este evento" });
     }
 
-    // 3) Contar inscritos activos para cupo
+    // 3) Contar inscritos activos
     const [[{ usados }]] = await pool.query(
       "SELECT COUNT(*) AS usados FROM inscripciones WHERE evento_id=? AND estado='ACTIVA'",
       [eventoId]
@@ -56,27 +63,31 @@ async function inscribir(req, res) {
 
     // 4) Insertar inscripción
     await pool.query(
-      "INSERT INTO inscripciones (user_id, evento_id, estado) VALUES (?,?, 'ACTIVA')",
+      "INSERT INTO inscripciones (user_id, evento_id, estado) VALUES (?, ?, 'ACTIVA')",
       [userId, eventoId]
     );
 
     return res.status(201).json({ ok: true, msg: "Inscrito correctamente" });
+
   } catch (err) {
     return res.status(500).json({ ok: false, msg: "Error al inscribir", error: err.message });
   }
 }
 
-// DELETE /api/inscripciones/:eventoId  (CLIENTE) -> cancela
+// DELETE /api/inscripciones/:eventoId (CLIENTE)
 async function cancelar(req, res) {
   const eventoId = Number(req.params.eventoId);
   const userId = req.user.id;
 
   try {
     const [rows] = await pool.query(
-      "SELECT id, estado FROM inscripciones WHERE user_id=? AND evento_id=?",
+      "SELECT id FROM inscripciones WHERE user_id=? AND evento_id=?",
       [userId, eventoId]
     );
-    if (rows.length === 0) return res.status(404).json({ ok: false, msg: "No estás inscrito en este evento" });
+
+    if (rows.length === 0) {
+      return res.status(404).json({ ok: false, msg: "No estás inscrito en este evento" });
+    }
 
     await pool.query(
       "UPDATE inscripciones SET estado='CANCELADA' WHERE user_id=? AND evento_id=?",
@@ -84,6 +95,7 @@ async function cancelar(req, res) {
     );
 
     return res.json({ ok: true, msg: "Inscripción cancelada" });
+
   } catch (err) {
     return res.status(500).json({ ok: false, msg: "Error al cancelar", error: err.message });
   }
@@ -105,12 +117,13 @@ async function misInscripciones(req, res) {
     );
 
     return res.json({ ok: true, data: rows });
+
   } catch (err) {
     return res.status(500).json({ ok: false, msg: "Error listando inscripciones", error: err.message });
   }
 }
 
-// GET /api/inscripciones/evento/:eventoId (ADMIN) -> ver inscritos
+// GET /api/inscripciones/evento/:eventoId (ADMIN)
 async function inscritosPorEvento(req, res) {
   const eventoId = Number(req.params.eventoId);
 
@@ -126,9 +139,69 @@ async function inscritosPorEvento(req, res) {
     );
 
     return res.json({ ok: true, data: rows });
+
   } catch (err) {
     return res.status(500).json({ ok: false, msg: "Error listando inscritos", error: err.message });
   }
 }
 
-module.exports = { inscribir, cancelar, misInscripciones, inscritosPorEvento };
+// POST /api/inscripciones/admin/:eventoId (ADMIN)
+async function inscribirAdmin(req, res) {
+  const eventoId = Number(req.params.eventoId);
+  const { userIds } = req.body;
+
+  try {
+    const [evRows] = await pool.query(
+      "SELECT id, cupo FROM eventos WHERE id=?",
+      [eventoId]
+    );
+
+    if (evRows.length === 0) {
+      return res.status(404).json({ ok: false, msg: "Evento no existe" });
+    }
+
+    const evento = evRows[0];
+
+    const [[{ usados }]] = await pool.query(
+      "SELECT COUNT(*) AS usados FROM inscripciones WHERE evento_id=? AND estado='ACTIVA'",
+      [eventoId]
+    );
+
+    let cuposDisponibles = evento.cupo - usados;
+
+    for (let userId of userIds) {
+      if (cuposDisponibles <= 0) break;
+
+      const [existe] = await pool.query(
+        "SELECT id, estado FROM inscripciones WHERE user_id=? AND evento_id=?",
+        [userId, eventoId]
+      );
+
+      if (existe.length > 0) {
+        if (existe[0].estado === "CANCELADA") {
+          await pool.query(
+            "UPDATE inscripciones SET estado='ACTIVA' WHERE id=?",
+            [existe[0].id]
+          );
+          cuposDisponibles--;
+        }
+        continue;
+      }
+
+      await pool.query(
+        "INSERT INTO inscripciones (user_id, evento_id, estado) VALUES (?, ?, 'ACTIVA')",
+        [userId, eventoId]
+      );
+
+      cuposDisponibles--;
+    }
+
+    return res.json({ ok: true, msg: "Clientes agregados correctamente" });
+
+  } catch (err) {
+    return res.status(500).json({ ok: false, msg: "Error admin", error: err.message });
+  }
+}
+
+// EXPORTS
+module.exports = {inscribir,cancelar,misInscripciones,inscritosPorEvento,inscribirAdmin};
