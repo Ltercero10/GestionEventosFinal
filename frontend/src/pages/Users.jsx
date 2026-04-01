@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
-import Swal from "sweetalert2";
 import { get, post, put, del } from "../api";
+import {
+  toastSuccess,
+  toastError,
+  confirmSave,
+  confirmDelete,
+  confirmDiscard,
+} from "../utils/alerts";
 
 const initialForm = {
   id: null,
@@ -9,14 +15,6 @@ const initialForm = {
   password: "",
   rol: "CLIENTE",
 };
-
-const toast = Swal.mixin({
-  toast: true,
-  position: "top-end",
-  showConfirmButton: false,
-  timer: 2500,
-  timerProgressBar: true,
-});
 
 export default function UsuariosAdmin() {
   const [usuarios, setUsuarios] = useState([]);
@@ -36,12 +34,25 @@ export default function UsuariosAdmin() {
 
   const abrirModalCrear = () => {
     resetForm();
+    setOriginalForm(initialForm);
     setOpenModal(true);
   };
 
-  const cerrarModal = () => {
+  const cerrarModal = async () => {
+    const hayCambios =
+      form.nombre !== originalForm.nombre ||
+      form.email !== originalForm.email ||
+      form.password !== originalForm.password ||
+      form.rol !== originalForm.rol;
+
+    if (hayCambios && openModal) {
+      const result = await confirmDiscard();
+      if (!result.isConfirmed) return;
+    }
+
     setOpenModal(false);
     resetForm();
+    setOriginalForm(initialForm);
   };
 
   const cargarUsuarios = async () => {
@@ -92,6 +103,9 @@ export default function UsuariosAdmin() {
       return;
     }
 
+    const result = await confirmSave(editando);
+    if (!result.isConfirmed) return;
+
     try {
       setSaving(true);
       setFormError("");
@@ -113,62 +127,51 @@ export default function UsuariosAdmin() {
       }
 
       await cargarUsuarios();
-      cerrarModal();
+      setOpenModal(false);
+      resetForm();
 
-      toast.fire({
-        icon: "success",
-        title: editando
+      toastSuccess(
+        editando
           ? "Usuario actualizado correctamente"
-          : "Usuario creado correctamente",
-      });
+          : "Usuario creado correctamente"
+      );
     } catch (err) {
       console.error(err);
-      setFormError(err.message || "Error al guardar usuario");
+      const message = err.message || "Error al guardar usuario";
+      setFormError(message);
+      toastError(message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleEditar = (usuario) => {
-    setForm({
+    const data = {
       id: usuario.id,
       nombre: usuario.nombre,
       email: usuario.email,
       password: "",
       rol: usuario.rol,
-    });
+    };
+
+    setForm(data);
+    setOriginalForm(data);
     setEditando(true);
     setFormError("");
     setOpenModal(true);
   };
 
   const handleEliminar = async (usuario) => {
-    const result = await Swal.fire({
-      title: "¿Eliminar usuario?",
-      text: `Se eliminará a ${usuario.nombre}`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Sí, eliminar",
-      cancelButtonText: "Cancelar",
-      confirmButtonColor: "#d33",
-    });
-
+    const result = await confirmDelete(`Se eliminará a ${usuario.nombre}`);
     if (!result.isConfirmed) return;
 
     try {
       await del(`/users/${usuario.id}`);
       await cargarUsuarios();
-
-      toast.fire({
-        icon: "success",
-        title: "Usuario eliminado correctamente",
-      });
+      toastSuccess("Usuario eliminado correctamente");
     } catch (err) {
       console.error(err);
-      toast.fire({
-        icon: "error",
-        title: err.message || "Error al eliminar usuario",
-      });
+      toastError(err.message || "Error al eliminar usuario");
     }
   };
 
@@ -293,8 +296,8 @@ export default function UsuariosAdmin() {
                   {saving
                     ? "Guardando..."
                     : editando
-                    ? "Actualizar usuario"
-                    : "Crear usuario"}
+                      ? "Actualizar usuario"
+                      : "Crear usuario"}
                 </button>
 
                 <button type="button" className="btn-secondary" onClick={cerrarModal}>

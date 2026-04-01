@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { post, setAuthToken } from "../api";
+import { toastSuccess, toastError } from "../utils/alerts";
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState("login");
@@ -26,6 +27,8 @@ export default function Login({ onLogin }) {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     setAuthToken(token);
+
+    toastSuccess("Inicio de sesión exitoso");
     onLogin(user);
   };
 
@@ -39,6 +42,7 @@ export default function Login({ onLogin }) {
       password,
     });
 
+    toastSuccess("Cuenta creada correctamente");
     await doLogin();
   };
 
@@ -90,9 +94,14 @@ export default function Login({ onLogin }) {
         await doLogin();
       }
     } catch (err) {
-      setMsg("❌ " + (err.message || "Ocurrió un error"));
+      const message = err.message || "Ocurrió un error";
+      setMsg("❌ " + message);
+      toastError(message);
       setLoading(false);
+      return;
     }
+
+    setLoading(false);
   };
 
   const switchMode = () => {
