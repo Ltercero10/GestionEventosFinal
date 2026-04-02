@@ -65,6 +65,9 @@ export default function AdminEventos({ user }) {
   const [search, setSearch] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("ACTIVO");
   const [filtroMes, setFiltroMes] = useState("TODOS");
+  const [usuarios, setUsuarios] = useState([]);
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [originalInscritos, setOriginalInscritos] = useState([]); // Para comparar al editar
 
   const [step, setStep] = useState(1);
   const [openModal, setOpenModal] = useState(false);
@@ -72,7 +75,7 @@ export default function AdminEventos({ user }) {
   const [selectedRecursos, setSelectedRecursos] = useState([]);
   const [recursosActualesEvento, setRecursosActualesEvento] = useState([]);
 
-  const nextStep = () => setStep((prev) => Math.min(prev + 1, 3));
+  const nextStep = () => setStep((prev) => Math.min(prev + 1, 4));
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
   const cargarRecursosPorEvento = async (eventoId) => {
@@ -114,6 +117,16 @@ export default function AdminEventos({ user }) {
   };
 
   useEffect(() => {
+    const cargarUsuarios = async () => {
+      try {
+        const usersRes = await get("/users");
+        setUsuarios(usersRes.data || []);
+      } catch (err) {
+        console.error("Error cargando usuarios", err);
+      }
+    };
+
+    cargarUsuarios();
     cargar();
   }, []);
 
@@ -135,6 +148,8 @@ export default function AdminEventos({ user }) {
     setMsg("");
     setSelectedRecursos([]);
     setRecursosActualesEvento([]);
+    setSeleccionados([]);
+    setOriginalInscritos([]);
   };
 
   const abrirModalCrear = () => {
@@ -344,9 +359,26 @@ export default function AdminEventos({ user }) {
     }
   };
 
+  // Validar cupo antes de seleccionar usuarios en paso 3
+  const validarCupo = (nuevoSeleccionado, esAgregar) => {
+    const cupoTotal = Number(form.cupo);
+    const inscritosActuales = form.id ? originalInscritos.length : 0;
+    let nuevosSeleccionados = seleccionados.length;
+    if (esAgregar) {
+      nuevosSeleccionados++;
+    } else {
+      nuevosSeleccionados--;
+    }
+    const totalInscripciones = inscritosActuales + nuevosSeleccionados;
+    if (totalInscripciones > cupoTotal) {
+      toastError(`No se puede exceder el cupo máximo de ${cupoTotal} personas.`);
+      return false;
+    }
+    return true;
+  };
+
   const submitEvento = async (e) => {
     e.preventDefault();
-    setMsg("");
 
     const payload = {
       titulo: form.titulo,
@@ -363,35 +395,58 @@ export default function AdminEventos({ user }) {
 
     try {
       if (form.id) {
+        // 🔹 ACTUALIZAR EVENTO
         const result = await put(`/eventos/${form.id}`, payload);
-        setMsg("✅ " + result.msg);
+
+        // Sincronizar inscripciones
+        const inscritosActualesIds = originalInscritos.map((i) => Number(i.user_id));
+        const nuevosSeleccionadosIds = seleccionados.map((id) => Number(id));
+
+        const aAgregar = nuevosSeleccionadosIds.filter(
+          (id) => !inscritosActualesIds.includes(id)
+        );
+        const aEliminar = inscritosActualesIds.filter(
+          (id) => !nuevosSeleccionadosIds.includes(id)
+        );
+
+        if (aAgregar.length > 0) {
+          await post(`/inscripciones/admin/${form.id}`, {
+            userIds: aAgregar,
+          });
+        }
+
+        for (const userId of aEliminar) {
+          await del(`/inscripciones/evento/${form.id}/user/${userId}`);
+        }
+
         toastSuccess(result.msg || "Evento actualizado correctamente");
       } else {
+        // 🔹 CREAR EVENTO
         const result = await post("/eventos", payload);
-
         const newEventId =
           result?.data?.id ||
           result?.id ||
           result?.evento?.id ||
           result?.data?.evento?.id;
 
-        if (newEventId && selectedRecursos.length > 0) {
+        // Asignar recursos seleccionados
+        if (selectedRecursos.length > 0) {
           for (const recurso of selectedRecursos) {
             await post(`/recursos/evento/${newEventId}`, {
               recurso_id: recurso.recurso_id,
-              cantidad: recurso.cantidad || 1,
+              cantidad: recurso.cantidad,
             });
           }
         }
 
-        setMsg("✅ " + (result.msg || "Evento creado correctamente"));
-        toastSuccess(result.msg || "Evento creado correctamente");
-
-        if (!newEventId && selectedRecursos.length > 0) {
-          toastError(
-            "El evento se creó, pero no se pudieron asignar recursos automáticamente porque la API no devolvió el ID del evento."
-          );
+        // Inscribir usuarios seleccionados
+        if (seleccionados.length > 0) {
+          await post(`/inscripciones/admin/${newEventId}`, {
+            userIds: seleccionados.map((id) => Number(id)),
+          });
         }
+
+        toastSuccess(result.msg || "Evento creado correctamente");
       }
 
       cerrarModal();
@@ -421,22 +476,21 @@ export default function AdminEventos({ user }) {
   };
 
   const cargarFormulario = async (evento) => {
-    if (!puedeEditar(evento)) {
-      const message = "No se pueden editar eventos finalizados o cancelados";
-      toastError(message);
-      return;
-    }
-
     try {
       setMsg("");
 
-      let recursosAsignados = [];
-      try {
-        const recursosRes = await get(`/recursos/evento/${evento.id}`);
-        recursosAsignados = recursosRes.data || [];
-      } catch {
-        recursosAsignados = [];
-      }
+      const usersRes = await get("/users");
+      setUsuarios(usersRes.data || []);
+
+      const recursosRes = await get(`/recursos/evento/${evento.id}`);
+      const recursosAsignados = recursosRes.data || [];
+
+      const insRes = await get(`/inscripciones/evento/${evento.id}`);
+      const inscritos = insRes.data.data || [];
+
+      const inscritosIds = inscritos.map((i) => Number(i.user_id));
+      setSeleccionados(inscritosIds);
+      setOriginalInscritos(inscritos);
 
       setForm({
         id: evento.id,
@@ -454,9 +508,7 @@ export default function AdminEventos({ user }) {
       setStep(1);
       setOpenModal(true);
     } catch (err) {
-      const message = err.message || "Error al cargar el evento";
-      setMsg("❌ " + message);
-      toastError(message);
+      toastError("Error al cargar evento");
     }
   };
 
@@ -473,7 +525,6 @@ export default function AdminEventos({ user }) {
         }}
       >
         <h3 style={{ margin: 0, fontSize: 24 }}>Panel Administrativo: Eventos</h3>
-
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={cargar} style={{ padding: "8px 16px", cursor: "pointer" }}>
             Recargar
@@ -565,7 +616,7 @@ export default function AdminEventos({ user }) {
         </select>
       </div>
 
-      {/* Grid de eventos - con desplegable sin afectar altura de otras tarjetas */}
+      {/* Grid de eventos */}
       {eventosFiltrados.length === 0 ? (
         <div style={{
           textAlign: "center",
@@ -584,7 +635,7 @@ export default function AdminEventos({ user }) {
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
             gap: 20,
-            alignItems: "start", // Esto evita que las tarjetas se estiren
+            alignItems: "start",
           }}
         >
           {eventosFiltrados.map((e) => {
@@ -704,7 +755,6 @@ export default function AdminEventos({ user }) {
                   </div>
                 )}
 
-                {/* Sección desplegable de recursos - con posición relativa y sin afectar el grid */}
                 {isExpanded && (
                   <div style={{ 
                     marginTop: 12, 
@@ -833,7 +883,7 @@ export default function AdminEventos({ user }) {
         </div>
       )}
 
-      {/* Modal - mantiene el mismo diseño */}
+      {/* Modal */}
       {openModal && (
         <div
           onClick={cerrarModal}
@@ -903,7 +953,8 @@ export default function AdminEventos({ user }) {
                 {[
                   "1. Datos del evento",
                   "2. Recursos",
-                  "3. Confirmación",
+                  "3  Agregar usuario",
+                  "4. Confirmación",
                 ].map((label, index) => (
                   <div
                     key={label}
@@ -1211,6 +1262,79 @@ export default function AdminEventos({ user }) {
 
               {step === 3 && (
                 <>
+                  <div style={{ fontSize: 16, marginBottom: 10 }}>
+                    👥 Agregar clientes al evento
+                  </div>
+
+                  {usuarios.length === 0 ? (
+                    <p>No hay usuarios disponibles.</p>
+                  ) : (
+                    <div style={{ display: "grid", gap: 8, maxHeight: 300, overflowY: "auto" }}>
+                      {usuarios.map((user) => {
+                        const seleccionado = seleccionados.includes(Number(user.id));
+
+                        return (
+                          <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => {
+                              const idNum = Number(user.id);
+                              const esAgregar = !seleccionado;
+                              if (esAgregar && !validarCupo(idNum, true)) return;
+                              if (!esAgregar && !validarCupo(idNum, false)) return;
+                              setSeleccionados((prev) => {
+                                if (prev.includes(idNum)) {
+                                  return prev.filter((x) => x !== idNum);
+                                } else {
+                                  return [...prev, idNum];
+                                }
+                              });
+                            }}
+                            style={{
+                              textAlign: "left",
+                              padding: 12,
+                              borderRadius: 12,
+                              border: seleccionado
+                                ? "2px solid #6c4cff"
+                                : "1px solid #555",
+                              background: seleccionado
+                                ? "rgba(108,76,255,.12)"
+                                : "transparent",
+                              color: "#fff",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <b>{user.nombre}</b>
+                            <div style={{ fontSize: 12, opacity: 0.7 }}>
+                              {user.email}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 10 }}>
+                    <b>Seleccionados:</b>{" "}
+                    {seleccionados.length === 0
+                      ? "Ninguno"
+                      : seleccionados.length + " cliente(s)"}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                    <button type="button" onClick={prevStep} style={{ flex: 1 }}>
+                      ← Atrás
+                    </button>
+
+                    <button type="button" onClick={() => setStep(4)} style={{ flex: 1 }}>
+                      Continuar →
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {step === 4 && (
+                <>
                   <div
                     style={{
                       border: "1px solid #555",
@@ -1229,37 +1353,41 @@ export default function AdminEventos({ user }) {
                     <div><b> Cupo:</b> {form.cupo || "-"}</div>
                     <div><b> Estado:</b> {form.estado || "-"}</div>
 
-                    {!form.id ? (
-                      <div>
-                        <b> Recursos seleccionados:</b>{" "}
-                        {selectedRecursos.length === 0
-                          ? "Ninguno"
-                          : selectedRecursos.map((r) => r.nombre).join(", ")}
-                      </div>
-                    ) : (
-                      <div>
-                        <b>🛠️ Recursos asignados actualmente:</b>
-                        {recursosActualesEvento.length === 0 ? (
-                          <div style={{ marginTop: 4, color: "#9ca3af" }}>Ninguno</div>
-                        ) : (
-                          <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
-                            {recursosActualesEvento.map((r) => (
-                              <div key={r.id} style={{ fontSize: 13, paddingLeft: 8 }}>
-                                • {r.nombre} ({r.tipo}) x{r.cantidad ?? 1}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <div>
+                      <b>🛠️ Recursos:</b>{" "}
+                      {!form.id
+                        ? (selectedRecursos.length === 0
+                            ? "Ninguno"
+                            : selectedRecursos.map(r => r.nombre).join(", ")
+                          )
+                        : (recursosActualesEvento.length === 0
+                            ? "Ninguno"
+                            : recursosActualesEvento.map(r => r.nombre).join(", ")
+                          )
+                      }
+                    </div>
+
+                    <div>
+                      <b>👥 Clientes seleccionados:</b>{" "}
+                      {seleccionados.length === 0
+                        ? "Ninguno"
+                        : seleccionados
+                            .map(id => {
+                              const user = usuarios.find(u => Number(u.id) === Number(id));
+                              return user ? user.nombre : `ID ${id}`;
+                            })
+                            .join(", ")
+                      }
+                    </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                    <button type="button" onClick={prevStep} style={{ flex: 1, padding: "10px" }}>
+                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                    <button type="button" onClick={prevStep} style={{ flex: 1 }}>
                       ← Atrás
                     </button>
-                    <button type="submit" style={{ flex: 1, padding: "10px", background: "#6c4cff" }}>
-                      {form.id ? " Guardar cambios" : "✅ Crear evento"}
+
+                    <button type="submit" style={{ flex: 1, background: "#6c4cff" }}>
+                      {form.id ? "Guardar cambios" : "Crear evento"}
                     </button>
                   </div>
                 </>
