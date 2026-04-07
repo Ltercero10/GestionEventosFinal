@@ -10,7 +10,6 @@ const userRoutes = require("./routes/user.routes");
 
 
 
-
 const app = express();
 
 app.use(cors());
@@ -24,7 +23,6 @@ app.use("/api/inscripciones", inscripcionesRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/recursos", recursosRoutes);
 app.use("/api/users", userRoutes);
-
 
 
 
