@@ -5,6 +5,7 @@ const {
   cancelar,
   misInscripciones,
   inscritosPorEvento,
+  inscribirAdmin
 } = require("../controllers/inscripciones.controller");
 
 // CLIENTE
@@ -14,5 +15,7 @@ router.delete("/:eventoId", auth, requireRole("CLIENTE"), cancelar);
 
 // ADMIN (ver inscritos por evento)
 router.get("/evento/:eventoId", auth, requireRole("ADMIN"), inscritosPorEvento);
+
+router.post('/admin/:eventoId', inscribirAdmin);
 
 module.exports = router;
