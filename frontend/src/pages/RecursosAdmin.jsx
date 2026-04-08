@@ -151,101 +151,161 @@ export default function RecursosAdmin({ user }) {
 
   if (user.rol !== "ADMIN") return null;
 
+  // Paleta de Colores
+  const darkPalette = {
+    background: "transparent",
+    surface: "rgba(0, 0, 0, 0.7)", 
+    border: "rgba(255, 255, 255, 0.12)",
+    borderLight: "rgba(255, 255, 255, 0.2)",
+    text: "#ffffff",
+    textMuted: "#b0b0b0",
+    primary: "#3b82f6",
+    success: "#10b981",
+    danger: "#ef4444",
+    inputBg: "rgba(0, 0, 0, 0.45)",
+    cardBg: "rgba(0, 0, 0, 0.55)"
+  };
+
+  const glassStyle = {
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    border: `1px solid ${darkPalette.border}`,
+    boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.45)",
+  };
+
+  // Estilo base para botones de acción con texto BLANCO
+  const actionButtonStyle = (colorRgb) => ({
+    padding: "8px 18px",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    color: "#ffffff", // TEXTO BLANCO SIEMPRE
+    border: `1px solid rgba(${colorRgb}, 0.5)`, 
+    borderRadius: "10px",
+    fontSize: "13px",
+    fontWeight: "600",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    transition: "all 0.2s ease-in-out",
+  });
+
   return (
-    <div style={{ marginTop: 20 }}>
-      <h3>Recursos</h3>
+    <div style={{
+      maxWidth: "1200px",
+      margin: "0 auto",
+      padding: "20px",
+      fontFamily: "'Inter', system-ui, sans-serif",
+      minHeight: "100vh",
+      color: darkPalette.text
+    }}>
+      <h3 style={{
+        fontSize: "24px",
+        fontWeight: "700",
+        marginBottom: "20px",
+        paddingBottom: "10px",
+        borderBottom: `2px solid ${darkPalette.primary}`,
+        display: "inline-block"
+      }}>
+        📦 Gestión de Recursos
+      </h3>
 
-      {msg && <p>{msg}</p>}
+      {msg && (
+        <div style={{
+          padding: "10px 15px",
+          borderRadius: "8px",
+          marginBottom: "20px",
+          backgroundColor: msg.includes("✅") ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+          color: msg.includes("✅") ? "#6ee7b7" : "#fca5a5",
+          borderLeft: `4px solid ${msg.includes("✅") ? darkPalette.success : darkPalette.danger}`,
+          backdropFilter: "blur(5px)",
+          fontWeight: "500"
+        }}>
+          {msg}
+        </div>
+      )}
 
-      <div style={{ border: "1px solid #444", padding: 12, borderRadius: 12 }}>
-        <h4>{editandoId ? "Editar recurso" : "Crear recurso"}</h4>
-
-        <input
-          placeholder="Nombre"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          style={{ padding: 8, marginRight: 8 }}
-        />
-
-        <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
-          <option value="">Seleccionar tipo</option>
-          <option value="Multimedia">Multimedia</option>
-          <option value="Infraestructura">Infraestructura</option>
-          <option value="Tecnología">Tecnología</option>
-          <option value="Personal">Personal</option>
-          <option value="Logística">Logística</option>
-        </select>
-
-        <button onClick={crearRecurso}>
-          {editandoId ? "Actualizar" : "Crear"}
-        </button>
-      </div>
-
-      <div
-        style={{
-          border: "1px solid #444",
-          padding: 12,
-          borderRadius: 12,
-          marginTop: 12,
-        }}
-      >
-        <h4>Asignar recurso a evento</h4>
-
-        <select value={eventoId} onChange={(e) => setEventoId(e.target.value)}>
-          <option value="">Evento</option>
-          {eventos.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.titulo}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={recursoId}
-          onChange={(e) => setRecursoId(e.target.value)}
-          style={{ marginLeft: 8 }}
-        >
-          <option value="">Recurso</option>
-          {recursos.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.nombre}
-            </option>
-          ))}
-        </select>
-
-        <button onClick={asignar} style={{ marginLeft: 8 }}>
-          Asignar
-        </button>
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <h4>Recursos existentes</h4>
-
-        {recursos.map((r) => (
-          <div
-            key={r.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: 8,
-              border: "1px solid #555",
-              borderRadius: 8,
-              marginBottom: 6,
-            }}
+      {/* Formulario */}
+      <div style={{ ...glassStyle, padding: "20px", borderRadius: "16px", marginBottom: "20px", backgroundColor: darkPalette.surface }}>
+        <h4 style={{ marginBottom: "15px", fontSize: "16px", fontWeight: "600" }}>{editandoId ? "✏️ Editar recurso" : "➕ Crear recurso"}</h4>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <input
+            placeholder="Nombre del recurso"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            style={{ flex: 2, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff", outline: "none" }}
+          />
+          <select
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value)}
+            style={{ flex: 1, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff", cursor: "pointer" }}
           >
-            <span>
-              {r.nombre} — {r.tipo}
-            </span>
+            <option value="" style={{backgroundColor: "#111"}}>Tipo...</option>
+            <option value="Multimedia" style={{backgroundColor: "#111"}}>🎬 Multimedia</option>
+            <option value="Infraestructura" style={{backgroundColor: "#111"}}>🏗️ Infraestructura</option>
+            <option value="Tecnología" style={{backgroundColor: "#111"}}>💻 Tecnología</option>
+            <option value="Personal" style={{backgroundColor: "#111"}}>👥 Personal</option>
+            <option value="Logística" style={{backgroundColor: "#111"}}>📦 Logística</option>
+          </select>
+          <button onClick={crearRecurso} style={{ padding: "10px 24px", backgroundColor: darkPalette.primary, color: "white", border: "none", borderRadius: "10px", fontWeight: "600", cursor: "pointer" }}>
+            {editandoId ? "Actualizar" : "Guardar"}
+          </button>
+        </div>
+      </div>
 
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={() => editarRecurso(r)}>Editar</button>
+      {/* Asignación */}
+      <div style={{ ...glassStyle, padding: "20px", borderRadius: "16px", marginBottom: "30px", backgroundColor: darkPalette.surface }}>
+        <h4 style={{ marginBottom: "15px", fontSize: "16px", fontWeight: "600" }}>🔗 Asignar recurso a evento</h4>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <select value={eventoId} onChange={(e) => setEventoId(e.target.value)} style={{ flex: 1, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff" }}>
+            <option value="" style={{backgroundColor: "#111"}}>📅 Seleccionar evento</option>
+            {eventos.map((e) => <option key={e.id} value={e.id} style={{backgroundColor: "#111"}}>{e.titulo}</option>)}
+          </select>
+          <select value={recursoId} onChange={(e) => setRecursoId(e.target.value)} style={{ flex: 1, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff" }}>
+            <option value="" style={{backgroundColor: "#111"}}>📦 Seleccionar recurso</option>
+            {recursos.map((r) => <option key={r.id} value={r.id} style={{backgroundColor: "#111"}}>{r.nombre}</option>)}
+          </select>
+          <button onClick={asignar} style={{ padding: "10px 24px", backgroundColor: darkPalette.primary, color: "white", border: "none", borderRadius: "10px", cursor: "pointer" }}>Asignar</button>
+        </div>
+      </div>
 
-              <button
-                onClick={() => eliminarRecurso(r.id, r.nombre)}
-                style={{ background: "#ff4d4f", color: "white" }}
+      {/* Lista con Botones Refinados */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <h4 style={{ marginBottom: "5px", fontSize: "16px", fontWeight: "600" }}>📋 Recursos existentes ({recursos.length})</h4>
+        {recursos.map((r) => (
+          <div key={r.id} style={{ ...glassStyle, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderRadius: "14px", backgroundColor: darkPalette.cardBg }}>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontWeight: "600", fontSize: "15px" }}>{r.nombre}</span>
+              <span style={{ marginLeft: "12px", padding: "4px 10px", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: "6px", fontSize: "11px", textTransform: "uppercase", color: darkPalette.textMuted }}>{r.tipo}</span>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button 
+                onClick={() => editarRecurso(r)} 
+                style={actionButtonStyle("16, 185, 129")}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.2)";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
               >
-                Eliminar
+                <span>✏️</span> Editar
+              </button>
+              <button 
+                onClick={() => eliminarRecurso(r.id, r.nombre)} 
+                style={actionButtonStyle("239, 68, 68")}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.2)";
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+                  e.currentTarget.style.transform = "translateY(0)";
+                }}
+              >
+                <span>🗑️</span> Borrar
               </button>
             </div>
           </div>
