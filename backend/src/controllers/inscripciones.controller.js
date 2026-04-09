@@ -258,8 +258,11 @@ async function inscribirAdmin(req, res) {
   const { userIds } = req.body;
 
   try {
+    // 1) Verificar evento
     const [evRows] = await pool.query(
-      "SELECT id, cupo FROM eventos WHERE id = ?",
+      `SELECT id, titulo, fecha_inicio, cupo
+       FROM eventos
+       WHERE id = ?`,
       [eventoId]
     );
 
@@ -269,42 +272,108 @@ async function inscribirAdmin(req, res) {
 
     const evento = evRows[0];
 
+    // 2) Contar inscritos activos
     const [[{ usados }]] = await pool.query(
-      "SELECT COUNT(*) AS usados FROM inscripciones WHERE evento_id = ? AND estado = 'ACTIVA'",
+      `SELECT COUNT(*) AS usados
+       FROM inscripciones
+       WHERE evento_id = ? AND estado = 'ACTIVA'`,
       [eventoId]
     );
 
     let cuposDisponibles = evento.cupo - usados;
 
+    // 3) Recorrer usuarios
     for (const userId of userIds) {
       if (cuposDisponibles <= 0) break;
 
       const [existe] = await pool.query(
-        "SELECT id, estado FROM inscripciones WHERE user_id = ? AND evento_id = ?",
+        `SELECT id, estado
+         FROM inscripciones
+         WHERE user_id = ? AND evento_id = ?`,
         [userId, eventoId]
       );
 
+      // Si ya existe inscripción
       if (existe.length > 0) {
-        if (existe[0].estado === "CANCELADA") {
+        const inscripcion = existe[0];
+
+        // Si estaba cancelada → reactivar
+        if (inscripcion.estado === "CANCELADA") {
           await pool.query(
-            "UPDATE inscripciones SET estado = 'ACTIVA' WHERE id = ?",
-            [existe[0].id]
+            `UPDATE inscripciones
+             SET estado = 'ACTIVA'
+             WHERE id = ?`,
+            [inscripcion.id]
           );
+
           cuposDisponibles--;
+
+          // Enviar correo de reactivación por admin
+          try {
+            const usuario = await obtenerEmailUsuario(userId);
+
+            await enviarCorreo(
+              usuario.email,
+              "Inscripción activada por un encargado",
+              `
+              <h2>Inscripción activada</h2>
+              <p>Hola ${usuario.nombre},</p>
+              <p>Un encargado ha reactivado tu inscripción al evento:</p>
+              <p><b>${evento.titulo}</b></p>
+              <p>Fecha: ${new Date(evento.fecha_inicio).toLocaleString()}</p>
+              <p>Te esperamos.</p>
+              `
+            );
+          } catch (correoError) {
+            console.error("Error enviando correo admin:", correoError);
+          }
+
+          await notificarInscripcion(userId, evento);
         }
+
         continue;
       }
 
+      // Si no existe inscripción → crear nueva
       await pool.query(
-        "INSERT INTO inscripciones (user_id, evento_id, estado) VALUES (?, ?, 'ACTIVA')",
+        `INSERT INTO inscripciones (user_id, evento_id, estado)
+         VALUES (?, ?, 'ACTIVA')`,
         [userId, eventoId]
       );
 
       cuposDisponibles--;
+
+      // Enviar correo de inscripción por admin
+      try {
+        const usuario = await obtenerEmailUsuario(userId);
+
+        await enviarCorreo(
+          usuario.email,
+          "Nuevo evento asignado",
+          `
+          <h2>Has sido inscrito a un nuevo evento</h2>
+          <p>Hola ${usuario.nombre},</p>
+          <p>Un encargado te ha inscrito al evento:</p>
+          <p><b>${evento.titulo}</b></p>
+          <p>Fecha: ${new Date(evento.fecha_inicio).toLocaleString()}</p>
+          <p>Te esperamos.</p>
+          `
+        );
+      } catch (correoError) {
+        console.error("Error enviando correo admin:", correoError);
+      }
+
+      await notificarInscripcion(userId, evento);
     }
 
-    return res.json({ ok: true, msg: "Clientes agregados correctamente" });
+    return res.json({
+      ok: true,
+      msg: "Clientes agregados correctamente",
+    });
+
   } catch (err) {
+    console.error("Error admin:", err);
+
     return res.status(500).json({
       ok: false,
       msg: "Error admin",
