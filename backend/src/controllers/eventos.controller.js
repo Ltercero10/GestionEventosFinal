@@ -192,7 +192,13 @@ async function eliminarEvento(req, res) {
     const [exist] = await pool.query("SELECT id FROM eventos WHERE id=?", [req.params.id]);
     if (exist.length === 0) return res.status(404).json({ ok: false, msg: "Evento no encontrado" });
 
-await notificarEventoEliminado(evento);
+    
+    const [evento] = await pool.query("SELECT * FROM eventos WHERE id=?", [req.params.id]);
+    
+    
+    if (typeof notificarEventoEliminado === 'function') {
+      await notificarEventoEliminado(evento[0]);
+    }
 
     await pool.query("DELETE FROM eventos WHERE id=?", [req.params.id]);
 

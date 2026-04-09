@@ -171,7 +171,7 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
 
   const estaFinalizado = (evento) => {
     if (!evento?.fecha_fin) return false;
-    return new Date(formatFecha(evento.fecha_fin).replace(" ", "T")) < new Date();
+    return new Date(String(evento.fecha_fin).replace(" ", "T")) < new Date();
   };
 
   const getEstadoVisual = (evento) => {
@@ -240,7 +240,7 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
 
     if (filtroMes !== "TODOS" && e.fecha_inicio) {
       const mesEvento =
-        new Date(formatFecha(e.fecha_inicio).replace(" ", "T")).getMonth() + 1;
+        new Date(String(e.fecha_inicio).replace(" ", "T")).getMonth() + 1;
       coincideMes = String(mesEvento) === filtroMes;
     }
 
@@ -504,8 +504,8 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
         titulo: evento.titulo || "",
         descripcion: evento.descripcion || "",
         ubicacion: evento.ubicacion || "",
-        fecha_inicio: formatFecha(evento.fecha_inicio),
-        fecha_fin: formatFecha(evento.fecha_fin),
+        fecha_inicio: toDatetimeLocal(evento.fecha_inicio),
+        fecha_fin: toDatetimeLocal(evento.fecha_fin),
         cupo: evento.cupo ?? 5,
         estado: evento.estado || "ACTIVO",
       });
