@@ -17,6 +17,17 @@ export default function RecursosAdmin({ user }) {
   const [msg, setMsg] = useState("");
   const [editandoId, setEditandoId] = useState(null);
 
+  // Tipos dinámicos
+  const [tipos, setTipos] = useState([
+    "Multimedia",
+    "Infraestructura",
+    "Tecnología",
+    "Personal",
+    "Logística",
+  ]);
+  const [nuevoTipo, setNuevoTipo] = useState("");
+  const [crearNuevoTipo, setCrearNuevoTipo] = useState(false);
+
   const cargar = async () => {
     setMsg("");
     try {
@@ -37,7 +48,9 @@ export default function RecursosAdmin({ user }) {
   }, []);
 
   const crearRecurso = async () => {
-    if (!nombre.trim() || !tipo.trim()) {
+    const tipoFinal = crearNuevoTipo && nuevoTipo.trim() ? nuevoTipo.trim() : tipo;
+
+    if (!nombre.trim() || !tipoFinal) {
       const message = "Nombre y tipo son obligatorios";
       setMsg("❌ " + message);
       toastError(message);
@@ -58,26 +71,25 @@ export default function RecursosAdmin({ user }) {
 
     try {
       if (editandoId) {
-        const result = await put(`/recursos/${editandoId}`, {
-          nombre,
-          tipo,
-        });
-
+        const result = await put(`/recursos/${editandoId}`, { nombre, tipo: tipoFinal });
         setMsg("✅ " + result.msg);
         toastSuccess(result.msg || "Recurso actualizado correctamente");
         setEditandoId(null);
       } else {
-        const result = await post("/recursos", {
-          nombre,
-          tipo,
-        });
-
+        const result = await post("/recursos", { nombre, tipo: tipoFinal });
         setMsg("✅ " + result.msg);
         toastSuccess(result.msg || "Recurso creado correctamente");
       }
 
+      // Si es un tipo nuevo, agregarlo a la lista
+      if (crearNuevoTipo && nuevoTipo.trim() && !tipos.includes(nuevoTipo.trim())) {
+        setTipos([...tipos, nuevoTipo.trim()]);
+      }
+
       setNombre("");
       setTipo("");
+      setNuevoTipo("");
+      setCrearNuevoTipo(false);
       await cargar();
     } catch (err) {
       const message = err.message || "Error al guardar recurso";
@@ -99,9 +111,7 @@ export default function RecursosAdmin({ user }) {
 
     const resultConfirm = await confirmDialog({
       title: "¿Asignar recurso?",
-      text: `Se asignará "${
-        recursoSeleccionado?.nombre || "el recurso"
-      }" al evento "${eventoSeleccionado?.titulo || "seleccionado"}".`,
+      text: `Se asignará "${recursoSeleccionado?.nombre || "el recurso"}" al evento "${eventoSeleccionado?.titulo || "seleccionado"}".`,
       icon: "question",
       confirmButtonText: "Sí, asignar",
       cancelButtonText: "Cancelar",
@@ -110,11 +120,7 @@ export default function RecursosAdmin({ user }) {
     if (!resultConfirm.isConfirmed) return;
 
     try {
-      const result = await post(`/recursos/evento/${eventoId}`, {
-        recurso_id: recursoId,
-        cantidad: 1,
-      });
-
+      const result = await post(`/recursos/evento/${eventoId}`, { recurso_id: recursoId, cantidad: 1 });
       setMsg("✅ " + result.msg);
       toastSuccess(result.msg || "Recurso asignado correctamente");
     } catch (err) {
@@ -125,9 +131,7 @@ export default function RecursosAdmin({ user }) {
   };
 
   const eliminarRecurso = async (id, nombreRecurso) => {
-    const resultConfirm = await confirmDelete(
-      `Se eliminará el recurso "${nombreRecurso}".`
-    );
+    const resultConfirm = await confirmDelete(`Se eliminará el recurso "${nombreRecurso}".`);
     if (!resultConfirm.isConfirmed) return;
 
     try {
@@ -145,16 +149,18 @@ export default function RecursosAdmin({ user }) {
   const editarRecurso = (recurso) => {
     setNombre(recurso.nombre);
     setTipo(recurso.tipo);
+    setNuevoTipo("");
+    setCrearNuevoTipo(false);
     setEditandoId(recurso.id);
     setMsg(`✏️ Editando recurso: ${recurso.nombre}`);
   };
 
   if (user.rol !== "ADMIN") return null;
 
-  // Paleta de Colores
+  // Paleta de colores y estilos
   const darkPalette = {
     background: "transparent",
-    surface: "rgba(0, 0, 0, 0.7)", 
+    surface: "rgba(0, 0, 0, 0.7)",
     border: "rgba(255, 255, 255, 0.12)",
     borderLight: "rgba(255, 255, 255, 0.2)",
     text: "#ffffff",
@@ -163,7 +169,7 @@ export default function RecursosAdmin({ user }) {
     success: "#10b981",
     danger: "#ef4444",
     inputBg: "rgba(0, 0, 0, 0.45)",
-    cardBg: "rgba(0, 0, 0, 0.55)"
+    cardBg: "rgba(0, 0, 0, 0.55)",
   };
 
   const glassStyle = {
@@ -173,12 +179,11 @@ export default function RecursosAdmin({ user }) {
     boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.45)",
   };
 
-  // Estilo base para botones de acción con texto BLANCO
   const actionButtonStyle = (colorRgb) => ({
     padding: "8px 18px",
     backgroundColor: "rgba(255, 255, 255, 0.05)",
-    color: "#ffffff", // TEXTO BLANCO SIEMPRE
-    border: `1px solid rgba(${colorRgb}, 0.5)`, 
+    color: "#ffffff",
+    border: `1px solid rgba(${colorRgb}, 0.5)`,
     borderRadius: "10px",
     fontSize: "13px",
     fontWeight: "600",
@@ -190,23 +195,9 @@ export default function RecursosAdmin({ user }) {
   });
 
   return (
-    <div style={{
-      maxWidth: "1200px",
-      margin: "0 auto",
-      padding: "20px",
-      fontFamily: "'Inter', system-ui, sans-serif",
-      minHeight: "100vh",
-      color: darkPalette.text
-    }}>
-      <h3 style={{
-        fontSize: "24px",
-        fontWeight: "700",
-        marginBottom: "20px",
-        paddingBottom: "10px",
-        borderBottom: `2px solid ${darkPalette.primary}`,
-        display: "inline-block"
-      }}>
-        📦 Gestión de Recursos
+    <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "20px", fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", color: darkPalette.text }}>
+      <h3 style={{ fontSize: "24px", fontWeight: "700", marginBottom: "20px", paddingBottom: "10px", borderBottom: `2px solid ${darkPalette.primary}`, display: "inline-block" }}>
+        Gestión de Recursos
       </h3>
 
       {msg && (
@@ -218,15 +209,17 @@ export default function RecursosAdmin({ user }) {
           color: msg.includes("✅") ? "#6ee7b7" : "#fca5a5",
           borderLeft: `4px solid ${msg.includes("✅") ? darkPalette.success : darkPalette.danger}`,
           backdropFilter: "blur(5px)",
-          fontWeight: "500"
+          fontWeight: "500",
         }}>
           {msg}
         </div>
       )}
 
-      {/* Formulario */}
+      {/* Formulario Crear/Editar */}
       <div style={{ ...glassStyle, padding: "20px", borderRadius: "16px", marginBottom: "20px", backgroundColor: darkPalette.surface }}>
-        <h4 style={{ marginBottom: "15px", fontSize: "16px", fontWeight: "600" }}>{editandoId ? "✏️ Editar recurso" : "➕ Crear recurso"}</h4>
+        <h4 style={{ marginBottom: "15px", fontSize: "16px", fontWeight: "600" }}>
+          {editandoId ? "✏️ Editar recurso" : "➕ Crear recurso"}
+        </h4>
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <input
             placeholder="Nombre del recurso"
@@ -235,42 +228,60 @@ export default function RecursosAdmin({ user }) {
             style={{ flex: 2, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff", outline: "none" }}
           />
           <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
+            value={crearNuevoTipo ? "nuevo" : tipo}
+            onChange={(e) => {
+              if (e.target.value === "nuevo") {
+                setCrearNuevoTipo(true);
+                setTipo("");
+              } else {
+                setTipo(e.target.value);
+                setCrearNuevoTipo(false);
+              }
+            }}
             style={{ flex: 1, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff", cursor: "pointer" }}
           >
-            <option value="" style={{backgroundColor: "#111"}}>Tipo...</option>
-            <option value="Multimedia" style={{backgroundColor: "#111"}}>🎬 Multimedia</option>
-            <option value="Infraestructura" style={{backgroundColor: "#111"}}>🏗️ Infraestructura</option>
-            <option value="Tecnología" style={{backgroundColor: "#111"}}>💻 Tecnología</option>
-            <option value="Personal" style={{backgroundColor: "#111"}}>👥 Personal</option>
-            <option value="Logística" style={{backgroundColor: "#111"}}>📦 Logística</option>
+            <option value="" style={{ backgroundColor: "#111" }}>Tipo...</option>
+            {tipos.map((t, i) => (
+              <option key={i} value={t} style={{ backgroundColor: "#111" }}>{t}</option>
+            ))}
+            <option value="nuevo" style={{ backgroundColor: "#111" }}>➕ Nuevo...</option>
           </select>
-          <button onClick={crearRecurso} style={{ padding: "10px 24px", backgroundColor: darkPalette.primary, color: "white", border: "none", borderRadius: "10px", fontWeight: "600", cursor: "pointer" }}>
+          {crearNuevoTipo && (
+            <input
+              placeholder="Nuevo tipo de recurso"
+              value={nuevoTipo}
+              onChange={(e) => setNuevoTipo(e.target.value)}
+              style={{ flex: 1, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff", outline: "none" }}
+            />
+          )}
+          <button
+            onClick={crearRecurso}
+            style={{ padding: "10px 24px", backgroundColor: darkPalette.primary, color: "white", border: "none", borderRadius: "10px", fontWeight: "600", cursor: "pointer" }}
+          >
             {editandoId ? "Actualizar" : "Guardar"}
           </button>
         </div>
       </div>
 
-      {/* Asignación */}
+      {/* Asignar recurso a evento */}
       <div style={{ ...glassStyle, padding: "20px", borderRadius: "16px", marginBottom: "30px", backgroundColor: darkPalette.surface }}>
-        <h4 style={{ marginBottom: "15px", fontSize: "16px", fontWeight: "600" }}>🔗 Asignar recurso a evento</h4>
+        <h4 style={{ marginBottom: "15px", fontSize: "16px", fontWeight: "600" }}>Asignar recurso a evento</h4>
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <select value={eventoId} onChange={(e) => setEventoId(e.target.value)} style={{ flex: 1, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff" }}>
-            <option value="" style={{backgroundColor: "#111"}}>📅 Seleccionar evento</option>
-            {eventos.map((e) => <option key={e.id} value={e.id} style={{backgroundColor: "#111"}}>{e.titulo}</option>)}
+            <option value="" style={{ backgroundColor: "#111" }}>Seleccionar evento</option>
+            {eventos.map((e) => <option key={e.id} value={e.id} style={{ backgroundColor: "#111" }}>{e.titulo}</option>)}
           </select>
           <select value={recursoId} onChange={(e) => setRecursoId(e.target.value)} style={{ flex: 1, padding: "10px 14px", border: `1px solid ${darkPalette.borderLight}`, borderRadius: "10px", backgroundColor: darkPalette.inputBg, color: "#fff" }}>
-            <option value="" style={{backgroundColor: "#111"}}>📦 Seleccionar recurso</option>
-            {recursos.map((r) => <option key={r.id} value={r.id} style={{backgroundColor: "#111"}}>{r.nombre}</option>)}
+            <option value="" style={{ backgroundColor: "#111" }}>Seleccionar recurso</option>
+            {recursos.map((r) => <option key={r.id} value={r.id} style={{ backgroundColor: "#111" }}>{r.nombre}</option>)}
           </select>
           <button onClick={asignar} style={{ padding: "10px 24px", backgroundColor: darkPalette.primary, color: "white", border: "none", borderRadius: "10px", cursor: "pointer" }}>Asignar</button>
         </div>
       </div>
 
-      {/* Lista con Botones Refinados */}
+      {/* Lista de recursos */}
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        <h4 style={{ marginBottom: "5px", fontSize: "16px", fontWeight: "600" }}>📋 Recursos existentes ({recursos.length})</h4>
+        <h4 style={{ marginBottom: "5px", fontSize: "16px", fontWeight: "600" }}>Recursos existentes ({recursos.length})</h4>
         {recursos.map((r) => (
           <div key={r.id} style={{ ...glassStyle, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderRadius: "14px", backgroundColor: darkPalette.cardBg }}>
             <div style={{ flex: 1 }}>
@@ -279,8 +290,8 @@ export default function RecursosAdmin({ user }) {
             </div>
 
             <div style={{ display: "flex", gap: "12px" }}>
-              <button 
-                onClick={() => editarRecurso(r)} 
+              <button
+                onClick={() => editarRecurso(r)}
                 style={actionButtonStyle("16, 185, 129")}
                 onMouseOver={(e) => {
                   e.currentTarget.style.backgroundColor = "rgba(16, 185, 129, 0.2)";
@@ -290,11 +301,10 @@ export default function RecursosAdmin({ user }) {
                   e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
                   e.currentTarget.style.transform = "translateY(0)";
                 }}
-              >
-                <span>✏️</span> Editar
-              </button>
-              <button 
-                onClick={() => eliminarRecurso(r.id, r.nombre)} 
+              >Editar</button>
+
+              <button
+                onClick={() => eliminarRecurso(r.id, r.nombre)}
                 style={actionButtonStyle("239, 68, 68")}
                 onMouseOver={(e) => {
                   e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.2)";
@@ -304,9 +314,7 @@ export default function RecursosAdmin({ user }) {
                   e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
                   e.currentTarget.style.transform = "translateY(0)";
                 }}
-              >
-                <span>🗑️</span> Borrar
-              </button>
+              >Borrar</button>
             </div>
           </div>
         ))}
