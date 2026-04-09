@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { get, post, put, del } from "../api";
+
 import {
   toastSuccess,
   toastError,
@@ -170,7 +171,7 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
 
   const estaFinalizado = (evento) => {
     if (!evento?.fecha_fin) return false;
-    return new Date(String(evento.fecha_fin).replace(" ", "T")) < new Date();
+    return new Date(formatFecha(evento.fecha_fin).replace(" ", "T")) < new Date();
   };
 
   const getEstadoVisual = (evento) => {
@@ -239,7 +240,7 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
 
     if (filtroMes !== "TODOS" && e.fecha_inicio) {
       const mesEvento =
-        new Date(String(e.fecha_inicio).replace(" ", "T")).getMonth() + 1;
+        new Date(formatFecha(e.fecha_inicio).replace(" ", "T")).getMonth() + 1;
       coincideMes = String(mesEvento) === filtroMes;
     }
 
@@ -503,8 +504,8 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
         titulo: evento.titulo || "",
         descripcion: evento.descripcion || "",
         ubicacion: evento.ubicacion || "",
-        fecha_inicio: toDatetimeLocal(evento.fecha_inicio),
-        fecha_fin: toDatetimeLocal(evento.fecha_fin),
+        fecha_inicio: formatFecha(evento.fecha_inicio),
+        fecha_fin: formatFecha(evento.fecha_fin),
         cupo: evento.cupo ?? 5,
         estado: evento.estado || "ACTIVO",
       });
@@ -866,7 +867,7 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
                     }}
                     title={!puedeEliminarEvento ? "No se pueden eliminar eventos finalizados o cancelados" : "Eliminar evento"}
                   >
-                    🗑️ {puedeEliminarEvento ? "Eliminar" : "No eliminar"}
+                     {puedeEliminarEvento ? "Eliminar" : "No eliminar"}
                   </button>
                 </div>
 
@@ -1395,7 +1396,7 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
                     <div><b> Estado:</b> {form.estado || "-"}</div>
 
                     <div>
-                      <b>🛠️ Recursos:</b>{" "}
+                      <b> Recursos:</b>{" "}
                       {!form.id
                         ? (selectedRecursos.length === 0
                             ? "Ninguno"
@@ -1409,7 +1410,7 @@ const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
                     </div>
 
                     <div>
-                      <b>👥 Clientes seleccionados:</b>{" "}
+                      <b>Clientes seleccionados:</b>{" "}
                       {seleccionados.length === 0
                         ? "Ninguno"
                         : seleccionados
