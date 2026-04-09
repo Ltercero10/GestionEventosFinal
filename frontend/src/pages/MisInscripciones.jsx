@@ -52,8 +52,23 @@ export default function MisInscripciones({ user }) {
 
   return (
     <div style={{ marginTop: 20 }}>
-      <h3>Mis inscripciones</h3>
-      <button onClick={cargar} style={{ padding: 8, marginBottom: 10 }}>
+      <h2 style={{ fontSize: "28px", fontWeight: "800", marginBottom: 10 }}>
+        Mis inscripciones
+      </h2>
+
+      <button
+        onClick={cargar}
+        style={{
+          padding: "10px 16px",
+          borderRadius: 12,
+          border: "none",
+          color: "#fff",
+          fontWeight: "bold",
+          cursor: "pointer",
+          marginBottom: 20,
+          background: "linear-gradient(90deg, #7c4dff, #24c6dc)",
+        }}
+      >
         Recargar
       </button>
 
@@ -62,25 +77,87 @@ export default function MisInscripciones({ user }) {
       {items.length === 0 ? (
         <p>No tenés inscripciones.</p>
       ) : (
-        <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "grid", gap: 20 }}>
           {items.map((x) => (
             <div
               key={x.id}
-              style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}
+              style={{
+                background: "rgba(18, 24, 45, 0.9)",
+                borderRadius: 20,
+                padding: 20,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "#fff",
+                maxWidth: 700,
+              }}
             >
-              <b>{x.titulo}</b>
-              <p style={{ margin: "6px 0" }}>
-                Estado: <b>{x.estado}</b>
+              {/* HEADER */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 15,
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: 22 }}>
+                  {x.titulo}
+                </h3>
+
+                <span
+                  style={{
+                    padding: "6px 12px",
+                    borderRadius: 20,
+                    border: "1px solid #d4a017",
+                    color: "#facc15",
+                    fontWeight: "bold",
+                    fontSize: 12,
+                  }}
+                >
+                  INSCRITO
+                </span>
+              </div>
+
+              {/* ESTADO */}
+              <p style={{ margin: "6px 0", color: "#9ca3af" }}>
+                Estado
               </p>
-              <p style={{ margin: "6px 0" }}>
-                Inicio: {String(x.fecha_inicio)} <br />
-                Fin: {String(x.fecha_fin)}
+              <p style={{ margin: "0 0 10px", fontWeight: "bold" }}>
+                {x.estado}
               </p>
 
+              {/* FECHAS */}
+              <div style={{ display: "flex", gap: 40, marginBottom: 20 }}>
+                <div>
+                  <p style={{ color: "#9ca3af", margin: 0 }}>Inicio</p>
+                  <p style={{ fontWeight: "bold", margin: 0 }}>
+                    {new Date(x.fecha_inicio).toLocaleString()}
+                  </p>
+                </div>
+
+                <div>
+                  <p style={{ color: "#9ca3af", margin: 0 }}>Fin</p>
+                  <p style={{ fontWeight: "bold", margin: 0 }}>
+                    {new Date(x.fecha_fin).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              {/* BOTÓN */}
               {x.estado === "ACTIVA" && (
                 <button
                   onClick={() => cancelar(x.evento_id, x.titulo)}
-                  style={{ padding: 8 }}
+                  style={{
+                    width: "100%",
+                    padding: 12,
+                    borderRadius: 12,
+                    border: "none",
+                    color: "#fff",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    background:
+                      "linear-gradient(90deg, #7c4dff, #5b6cff, #24c6dc)",
+                  }}
                 >
                   Cancelar inscripción
                 </button>
