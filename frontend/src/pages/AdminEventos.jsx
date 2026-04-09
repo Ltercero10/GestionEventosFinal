@@ -75,6 +75,10 @@ export default function AdminEventos({ user }) {
   const [selectedRecursos, setSelectedRecursos] = useState([]);
   const [recursosActualesEvento, setRecursosActualesEvento] = useState([]);
 
+  // NUEVO: para permitir agregar nueva ubicación
+const [nuevaUbicacion, setNuevaUbicacion] = useState("");
+const [mostrarNuevaUbicacion, setMostrarNuevaUbicacion] = useState(false);
+
   const nextStep = () => setStep((prev) => Math.min(prev + 1, 4));
   const prevStep = () => setStep((prev) => Math.max(prev - 1, 1));
 
@@ -150,6 +154,8 @@ export default function AdminEventos({ user }) {
     setRecursosActualesEvento([]);
     setSeleccionados([]);
     setOriginalInscritos([]);
+    setNuevaUbicacion("");
+    setMostrarNuevaUbicacion(false);
   };
 
   const abrirModalCrear = () => {
@@ -987,24 +993,59 @@ export default function AdminEventos({ user }) {
                     }}
                   />
 
-                  <select
-                    value={form.ubicacion}
-                    onChange={(e) => onChange("ubicacion", e.target.value)}
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: 8,
-                      border: "1px solid #444",
-                      background: "#1f2937",
-                      color: "#fff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <option value="">Seleccionar ubicación</option>
-                    <option value="Auditorio">Auditorio</option>
-                    <option value="Sala 1">Sala 1</option>
-                    <option value="Sala 2">Sala 2</option>
-                    <option value="Sala de conferencias">Sala de conferencias</option>
-                  </select>
+                 <select
+  value={mostrarNuevaUbicacion ? "NUEVA" : form.ubicacion}
+  onChange={(e) => {
+    const value = e.target.value;
+
+    if (value === "NUEVA") {
+      setMostrarNuevaUbicacion(true);
+      setNuevaUbicacion("");
+      onChange("ubicacion", "");
+    } else {
+      setMostrarNuevaUbicacion(false);
+      onChange("ubicacion", value);
+    }
+  }}
+  style={{
+    padding: "10px 14px",
+    borderRadius: 8,
+    border: "1px solid #444",
+    background: "#1f2937",
+    color: "#fff",
+    cursor: "pointer",
+  }}
+>
+  <option value="">Seleccionar ubicación</option>
+  <option value="Auditorio">Auditorio</option>
+  <option value="Sala 1">Sala 1</option>
+  <option value="Sala 2">Sala 2</option>
+  <option value="Sala de conferencias">Sala de conferencias</option>
+
+  <option value="NUEVA">
+    ➕ Agregar nueva ubicación...
+  </option>
+</select>
+
+{mostrarNuevaUbicacion && (
+  <input
+    type="text"
+    placeholder="Escriba la nueva ubicación"
+    value={nuevaUbicacion}
+    onChange={(e) => {
+      const value = e.target.value;
+      setNuevaUbicacion(value);
+      onChange("ubicacion", value);
+    }}
+    style={{
+      padding: "10px 14px",
+      borderRadius: 8,
+      border: "1px solid #444",
+      background: "#1f2937",
+      color: "#fff",
+    }}
+  />
+)}
 
                   <textarea
                     placeholder="Descripción del evento"

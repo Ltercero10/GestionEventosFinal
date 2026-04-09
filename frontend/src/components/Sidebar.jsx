@@ -37,7 +37,7 @@ export default function Sidebar({ user, view, setView }) {
       </div>
 
       <div style={{ marginTop: 12, fontSize: 12 }} className="muted">
-        Rol: <b style={{ color: "white" }}>{user.rol}</b>
+      
       </div>
     </div>
   );
